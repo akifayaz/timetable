@@ -188,8 +188,7 @@ export default function OAANext() {
   }, [studyLog, now]);
 
   // weekly stats
-  // const weekTotal = weeklyMinutes.reduce((a,b)=>a+b,0);
-  // const longestIdx = weeklyMinutes.reduce((best, v, i)=> v > weeklyMinutes[best] ? i : best, 0);
+ 
 
   // -------------------------------------------
   // Todo operations
