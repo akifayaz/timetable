@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useLayoutEffect } from "react";
-import { Calendar, Clock, ListChecks, Plus, X, Moon, Sun, Trash2, Edit3, Maximize2, Minimize2, BarChart3, Settings } from "lucide-react";
+import { Calendar, Clock, ListChecks, Plus, X, Moon, Sun, Trash2, Edit3, Maximize2, Minimize2 } from "lucide-react";
 
 // =============================================================
 // Types
@@ -20,11 +20,6 @@ type TodoItem = {
   id: string;
   text: string;
   done: boolean;
-};
-
-type StudyHistoryEntry = {
-  date: string; // YYYY-MM-DD
-  minutes: number;
 };
 
 // =============================================================
@@ -103,16 +98,14 @@ const useLocal = <T,>(key: string, initial: T) => {
 export default function OAANext() {
   // DEFAULT LIGHT THEME (white)
   const [dark, setDark] = useLocal<boolean>("oaa_next_dark", false);
-  const [tab, setTab] = useLocal<"overview" | "timetable" | "history">("oaa_next_tab", "overview");
+  const [tab, setTab] = useLocal<"overview" | "timetable">("oaa_next_tab", "overview");
   const [classes, setClasses] = useLocal<ClassItem[]>("oaa_next_classes", []);
   const [todos, setTodos] = useLocal<TodoItem[]>("oaa_next_todos", []);
-  // NEW: study minutes per day { "YYYY-MM-DD": minutes }
+  // study minutes per day { "YYYY-MM-DD": minutes }
   const [studyLog, setStudyLog] = useLocal<Record<string, number>>("oaa_next_studylog", {});
-  const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // minutes
 
   // modals
   const [showClassModal, setShowClassModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editing, setEditing] = useState<ClassItem | null>(null);
   const [tmp, setTmp] = useState<ClassItem>({ id: "", name: "", color: COLORS[0], day: 0, start: "19:00", end: "20:00" });
 
@@ -195,7 +188,7 @@ export default function OAANext() {
   }, [studyLog, now]);
 
   // weekly stats
-
+ 
 
   // -------------------------------------------
   // Todo operations
@@ -248,10 +241,6 @@ export default function OAANext() {
           <div className="flex items-center gap-2">
             <button onClick={() => setTab("overview")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "overview" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`}>Overview</button>
             <button onClick={() => setTab("timetable")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "timetable" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`}>Timetable</button>
-            <button onClick={() => setTab("history")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "history" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`}>Geçmiş</button>
-            <button onClick={() => setShowSettingsModal(true)} className="ml-1 p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900" title="Ayarlar">
-              <Settings className="w-5 h-5"/>
-            </button>
             <button onClick={() => setDark(!dark)} className="ml-1 p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900" title="Tema">
               {dark ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
             </button>
@@ -288,11 +277,7 @@ export default function OAANext() {
               weeklyMinutes={weeklyMinutes}
               onSetTodayMinutes={setTodayMinutes}
               weekLabels={weekLabels}
-              goal={goal}
-              setGoal={setGoal}
             />
-          ) : tab === "history" ? (
-            <StudyHistory studyLog={studyLog} />
           ) : (
             <Timetable
               classes={classes}
@@ -357,119 +342,6 @@ export default function OAANext() {
           </div>
         </Modal>
       )}
-
-      {showSettingsModal && (
-        <Modal onClose={()=>setShowSettingsModal(false)}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Ayarlar</h3>
-            <button className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={()=>setShowSettingsModal(false)}><X className="w-5 h-5"/></button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4">
-              <div className="text-sm font-semibold mb-2">Günlük Çalışma Hedefi</div>
-              <div className="text-xs text-zinc-500 mb-3">Her gün için hedef çalışma sürenizi dakika cinsinden belirleyin</div>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="number" 
-                  min={30} 
-                  max={1440} 
-                  step={30} 
-                  value={goal} 
-                  onChange={(e)=>setGoal(Number(e.target.value))} 
-                  className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2"
-                />
-                <span className="text-sm text-zinc-500">dakika</span>
-              </div>
-              <div className="mt-2 text-xs text-zinc-400">{(goal/60).toFixed(1)} saat</div>
-            </div>
-            
-            <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4">
-              <div className="text-sm font-semibold mb-2">Tema</div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setDark(false)} 
-                  className={`flex-1 px-3 py-2 rounded-lg border ${!dark ? "border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "border-zinc-300 dark:border-zinc-700"}`}
-                >
-                  Açık
-                </button>
-                <button 
-                  onClick={() => setDark(true)} 
-                  className={`flex-1 px-3 py-2 rounded-lg border ${dark ? "border-zinc-900 dark:border-white bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "border-zinc-300 dark:border-zinc-700"}`}
-                >
-                  Koyu
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4">
-              <div className="text-sm font-semibold mb-2">Verileri Yönet</div>
-              <div className="text-xs text-zinc-500 mb-3">Tüm verilerinizi yedekleyin veya farklı bir cihaza aktarın</div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => {
-                    const data = {
-                      classes,
-                      todos,
-                      studyLog,
-                      goal,
-                      dark,
-                      exportDate: new Date().toISOString()
-                    };
-                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `oaa-backup-${dateKey(new Date())}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                  className="flex-1 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
-                >
-                  📥 Dışa Aktar
-                </button>
-                <button 
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.json';
-                    input.onchange = (e: any) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event: any) => {
-                          try {
-                            const data = JSON.parse(event.target.result);
-                            if (data.classes) setClasses(data.classes);
-                            if (data.todos) setTodos(data.todos);
-                            if (data.studyLog) setStudyLog(data.studyLog);
-                            if (data.goal) setGoal(data.goal);
-                            if (typeof data.dark === 'boolean') setDark(data.dark);
-                            alert('Veriler başarıyla içe aktarıldı!');
-                            setShowSettingsModal(false);
-                          } catch (err) {
-                            alert('Dosya okunamadı. Lütfen geçerli bir yedek dosyası seçin.');
-                          }
-                        };
-                        reader.readAsText(file);
-                      }
-                    };
-                    input.click();
-                  }}
-                  className="flex-1 px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 text-sm font-medium"
-                >
-                  📤 İçe Aktar
-                </button>
-              </div>
-              <div className="mt-2 text-xs text-zinc-400">Yedek dosyası tüm derslerinizi, görevlerinizi ve çalışma geçmişinizi içerir</div>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <button onClick={()=>setShowSettingsModal(false)} className="w-full h-10 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">Tamam</button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
@@ -478,7 +350,7 @@ export default function OAANext() {
 // Overview page
 // =============================================================
 
-function Overview({ todayClasses, current, next, progress, tomorrowList, openCreate, openEdit, deleteClass, todayMinutes, weeklyMinutes, onSetTodayMinutes, weekLabels, goal, setGoal }: {
+function Overview({ todayClasses, current, next, progress, tomorrowList, openCreate, openEdit, deleteClass, todayMinutes, weeklyMinutes, onSetTodayMinutes, weekLabels }: {
   todayClasses: ClassItem[];
   current: ClassItem | undefined;
   next: ClassItem | null | undefined;
@@ -491,102 +363,60 @@ function Overview({ todayClasses, current, next, progress, tomorrowList, openCre
   weeklyMinutes: number[];
   onSetTodayMinutes: (m: number) => void;
   weekLabels: string[];
-  goal: number;
-  setGoal: (g: number) => void;
 }) {
   const [inputHours, setInputHours] = useState(Math.round((todayMinutes/60)*100)/100);
+  const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // minutes
 
   useEffect(()=>{ setInputHours(Math.round((todayMinutes/60)*100)/100); }, [todayMinutes]);
 
-  // Get today's date formatted
-  const todayDate = useMemo(() => {
-    const now = new Date();
-    return now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  }, []);
-
   return (
     <div className="space-y-6">
-      {/* TOP ROW: Big Daily Study Widget spanning 2 columns + Weekly Graph */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* LARGE Günlük çalışma widget - now takes 2 columns */}
-        <div className="lg:col-span-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-br from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-950 p-8 shadow-sm">
-          <div className="text-xs uppercase tracking-wider text-zinc-400 mb-1">{todayDate}</div>
-          <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">Bugün Kaç Saat Çalıştın?</h2>
-          
-          <div className="flex items-end gap-4 mb-8">
-            <div>
-              <div className="text-6xl font-bold">{Math.floor(todayMinutes/60)}</div>
-              <div className="text-lg text-zinc-500">saat</div>
-            </div>
-            <div className="pb-2">
-              <div className="text-4xl font-bold text-zinc-400">{todayMinutes%60}</div>
-              <div className="text-sm text-zinc-500">dakika</div>
-            </div>
+      {/* TOP widgets row: Daily Study (with input), Next Class, Weekly Graph */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        {/* Günlük çalışma */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div className="text-sm text-zinc-500 mb-1">Günlük Çalışma</div>
+          <div className="text-3xl font-bold">{Math.floor(todayMinutes/60)}s <span className="text-xl align-top">{todayMinutes%60}dk</span></div>
+          <div className="mt-3 h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+            <div className="h-full" style={{ width: `${Math.min(100, (todayMinutes/goal)*100)}%`, background: "linear-gradient(to right, #22c55e,#3b82f6)" }} />
           </div>
-          
-          {/* BIG Progress bar */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-zinc-500">Günlük İlerleme</span>
-              <span className="text-sm font-semibold">{Math.min(100, Math.round((todayMinutes/goal)*100))}%</span>
-            </div>
-            <div className="h-4 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-              <div 
-                className="h-full rounded-full transition-all duration-500" 
-                style={{ 
-                  width: `${Math.min(100, (todayMinutes/goal)*100)}%`, 
-                  background: "linear-gradient(to right, #3b82f6, #06b6d4, #22c55e)" 
-                }} 
-              />
-            </div>
-            <div className="text-xs text-zinc-400 mt-1">Hedef: {(goal/60).toFixed(1)} saat</div>
-          </div>
-
-          {/* Input area */}
-          <div className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <input 
-              type="number" 
-              step={0.25} 
-              min={0} 
-              max={24} 
-              value={inputHours}
-              onChange={(e)=> setInputHours(Number(e.target.value))}
-              className="flex-1 text-2xl font-bold rounded-lg border-2 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="0"
-            />
-            <span className="text-lg text-zinc-500 font-medium">saat</span>
-            <button 
-              onClick={()=> onSetTodayMinutes(inputHours*60)} 
-              className="px-6 py-3 rounded-xl text-base font-semibold bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700 transition-all shadow-md hover:shadow-lg"
-            >
-              Kaydet
-            </button>
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <input type="number" step={0.25} min={0} max={24} value={inputHours}
+                   onChange={(e)=> setInputHours(Number(e.target.value))}
+                   className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-sm"/>
+            <span className="text-sm text-zinc-500">saat</span>
+            <button onClick={()=> onSetTodayMinutes(inputHours*60)} className="ml-1 px-3 py-1.5 rounded-lg text-sm bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">Kaydet</button>
+            <div className="grow"/>
+            <label className="flex items-center gap-2 text-xs text-zinc-500">Hedef
+              <input type="number" min={30} max={1440} step={30} value={goal} onChange={(e)=>setGoal(Number(e.target.value))} className="w-20 rounded border border-zinc-300 dark:border-zinc-700 bg-transparent px-2 py-1"/>
+              dk
+            </label>
           </div>
         </div>
 
-        {/* Haftalık grafik - now takes 1 column */}
+        {/* Sonraki ders */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div className="text-sm text-zinc-500 mb-1">Sonraki Ders</div>
+          {next ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-8 rounded" style={{ background: next.color }} />
+                <div>
+                  <div className="font-semibold">{next.name}</div>
+                  <div className="text-xs text-zinc-500">{next.start} – {next.end}</div>
+                </div>
+              </div>
+              <button onClick={openCreate} className="px-2.5 py-1.5 rounded-lg text-sm bg-zinc-100 dark:bg-zinc-800">Ders Ekle</button>
+            </div>
+          ) : <div className="text-sm text-zinc-500">Yakında ders görünmüyor.</div>}
+        </div>
+
+        {/* Haftalık grafik */}
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
           <div className="flex items-center justify-between mb-2"><div className="text-sm text-zinc-500">Haftalık Grafik</div></div>
           <BarMini values={weeklyMinutes} labels={weekLabels} max={Math.max(60, ...weeklyMinutes, 1)} />
           <div className="mt-2 text-xs text-zinc-500">Toplam: {(weeklyMinutes.reduce((a,b)=>a+b,0)/60).toFixed(1)}s • En uzun gün: {DAYS_TR[longestDay(weeklyMinutes)]}</div>
         </div>
-      </div>
-
-      {/* Sonraki ders */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-        <div className="text-sm text-zinc-500 mb-3">Sonraki Ders</div>
-        {next ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-8 rounded" style={{ background: next.color }} />
-              <div>
-                <div className="font-semibold text-lg">{next.name}</div>
-                <div className="text-sm text-zinc-500">{next.start} – {next.end}</div>
-              </div>
-            </div>
-            <button onClick={openCreate} className="px-3 py-2 rounded-lg text-sm bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700">Ders Ekle</button>
-          </div>
-        ) : <div className="text-sm text-zinc-500">Yakında ders görünmüyor.</div>}
       </div>
 
       {/* RIGHT NOW + Quick stats */}
@@ -664,196 +494,6 @@ function Overview({ todayClasses, current, next, progress, tomorrowList, openCre
   );
 }
 
-// =============================================================
-// Study History page with graphs
-// =============================================================
-
-function StudyHistory({ studyLog }: { studyLog: Record<string, number> }) {
-  const [period, setPeriod] = useState<"7days" | "1month" | "3months">("7days");
-  
-  const historyData = useMemo(() => {
-    const now = new Date();
-    const entries: StudyHistoryEntry[] = [];
-    
-    let days = 7;
-    if (period === "1month") days = 30;
-    if (period === "3months") days = 90;
-    
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      const key = dateKey(d);
-      entries.push({
-        date: key,
-        minutes: studyLog[key] || 0
-      });
-    }
-    
-    return entries;
-  }, [studyLog, period]);
-  
-  const stats = useMemo(() => {
-    const total = historyData.reduce((sum, entry) => sum + entry.minutes, 0);
-    const avg = historyData.length > 0 ? total / historyData.length : 0;
-    const max = Math.max(...historyData.map(e => e.minutes), 0);
-    const daysWorked = historyData.filter(e => e.minutes > 0).length;
-    
-    return { total, avg, max, daysWorked };
-  }, [historyData]);
-  
-  return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">Çalışma Geçmişi</h2>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setPeriod("7days")} 
-              className={`px-3 py-1.5 rounded-lg text-sm ${period === "7days" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
-            >
-              7 Gün
-            </button>
-            <button 
-              onClick={() => setPeriod("1month")} 
-              className={`px-3 py-1.5 rounded-lg text-sm ${period === "1month" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
-            >
-              1 Ay
-            </button>
-            <button 
-              onClick={() => setPeriod("3months")} 
-              className={`px-3 py-1.5 rounded-lg text-sm ${period === "3months" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
-            >
-              3 Ay
-            </button>
-          </div>
-        </div>
-        
-        {/* Stats cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4">
-            <div className="text-xs text-zinc-500 mb-1">Toplam Çalışma</div>
-            <div className="text-2xl font-bold">{(stats.total / 60).toFixed(1)} <span className="text-sm">saat</span></div>
-          </div>
-          <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4">
-            <div className="text-xs text-zinc-500 mb-1">Ortalama/Gün</div>
-            <div className="text-2xl font-bold">{(stats.avg / 60).toFixed(1)} <span className="text-sm">saat</span></div>
-          </div>
-          <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4">
-            <div className="text-xs text-zinc-500 mb-1">En Uzun Gün</div>
-            <div className="text-2xl font-bold">{(stats.max / 60).toFixed(1)} <span className="text-sm">saat</span></div>
-          </div>
-          <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/50 p-4">
-            <div className="text-xs text-zinc-500 mb-1">Çalışılan Gün</div>
-            <div className="text-2xl font-bold">{stats.daysWorked} <span className="text-sm">gün</span></div>
-          </div>
-        </div>
-        
-        {/* Bar chart */}
-        <div className="mt-6">
-          <HistoryBarChart data={historyData} period={period} />
-        </div>
-      </div>
-      
-      {/* Detailed list */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-        <h3 className="text-lg font-semibold mb-4">Detaylı Liste</h3>
-        <div className="max-h-96 overflow-y-auto space-y-2">
-          {historyData.slice().reverse().map(entry => (
-            <div 
-              key={entry.date} 
-              className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/60"
-            >
-              <div>
-                <div className="text-sm font-medium">{formatDate(entry.date)}</div>
-                <div className="text-xs text-zinc-500">{getDayName(entry.date)}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-lg font-bold">{Math.floor(entry.minutes / 60)}s {entry.minutes % 60}dk</div>
-                <div className="text-xs text-zinc-500">{entry.minutes} dakika</div>
-              </div>
-            </div>
-          ))}
-          {historyData.length === 0 && (
-            <div className="text-center text-zinc-500 py-8">Henüz veri yok</div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HistoryBarChart({ data, period }: { data: StudyHistoryEntry[]; period: string }) {
-  const maxValue = Math.max(...data.map(d => d.minutes), 60);
-  
-  // For display optimization
-  const displayData = period === "3months" 
-    ? data.filter((_, i) => i % 3 === 0) // Show every 3rd day for 3 months
-    : period === "1month"
-    ? data.filter((_, i) => i % 2 === 0) // Show every 2nd day for 1 month
-    : data; // Show all for 7 days
-  
-  return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex items-end justify-between gap-1 h-64 min-w-full px-2">
-        {displayData.map((entry, i) => {
-          const height = maxValue > 0 ? (entry.minutes / maxValue) * 100 : 0;
-          // Ensure minimum visible height for non-zero values
-          const displayHeight = entry.minutes > 0 ? Math.max(height, 8) : 0;
-          
-          return (
-            <div key={entry.date} className="flex-1 flex flex-col items-center gap-2 min-w-[30px] max-w-[80px]">
-              <div 
-                className="w-full rounded-t-lg transition-all cursor-pointer relative group min-h-[8px]"
-                style={{ 
-                  height: `${displayHeight}%`,
-                  background: entry.minutes > 0 
-                    ? 'linear-gradient(to top, #3b82f6, #06b6d4, #22c55e)' 
-                    : '#e4e4e7'
-                }}
-                title={`${formatDate(entry.date)}: ${(entry.minutes / 60).toFixed(1)} saat`}
-              >
-                {entry.minutes > 0 && (
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                    {(entry.minutes / 60).toFixed(1)}s
-                  </div>
-                )}
-              </div>
-              <div className="text-[10px] text-zinc-500 text-center font-medium">
-                {period === "7days" ? getDayShort(entry.date) : formatDateShort(entry.date)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-function formatDateShort(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-}
-
-function getDayName(dateStr: string) {
-  const d = new Date(dateStr);
-  const dayIndex = (d.getDay() + 6) % 7;
-  return DAYS_TR[dayIndex as DayIndex];
-}
-
-function getDayShort(dateStr: string) {
-  const d = new Date(dateStr);
-  const dayIndex = (d.getDay() + 6) % 7;
-  return DAYS[dayIndex as DayIndex];
-}
-
 function longestDay(arr: number[]): DayIndex {
   let best = 0 as DayIndex; let bestV = -1;
   for (let i=0;i<arr.length;i++){ if (arr[i] > bestV){ best = i as DayIndex; bestV = arr[i]; } }
@@ -879,7 +519,7 @@ function ClassRow({ c, onEdit, onDelete }: { c: ClassItem; onEdit: () => void; o
 }
 
 // =============================================================
-// Timetable page (full‑screen grid) - FIXED OVERLAPPING ISSUE
+// Timetable page (full‑screen grid)
 // =============================================================
 
 function Timetable({ classes, onCreate, onEdit, onDelete, fullscreen=false, onToggleFull }: {
@@ -890,24 +530,11 @@ function Timetable({ classes, onCreate, onEdit, onDelete, fullscreen=false, onTo
   fullscreen?: boolean;
   onToggleFull?: () => void;
 }) {
-  // FIXED: Dynamic start/end hours based on classes
-  const minClassHour = useMemo(() => {
-    if (classes.length === 0) return 6;
-    const allStarts = classes.map(c => Math.floor(toMin(c.start) / 60));
-    return Math.max(0, Math.min(...allStarts, 6));
-  }, [classes]);
-  
-  const maxClassHour = useMemo(() => {
-    if (classes.length === 0) return 24;
-    const allEnds = classes.map(c => Math.ceil(toMin(c.end) / 60));
-    return Math.min(24, Math.max(...allEnds, 18) + 1);
-  }, [classes]);
-  
-  const startHour = minClassHour; // Start from earliest class or 6 AM
-  const endHour = maxClassHour;    // End at latest class + 1 hour or midnight
+  const startHour = 8; // 08:00
+  const endHour = 24;  // 24:00 visual grid
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
 
-  const byDay: Record<DayIndex, ClassItem[]> = { 0:[],1:[],2:[],3:[],4:[],5:[],6:[] };
+  const byDay: Record<DayIndex, ClassItem[]> = { 0:[],1:[],2:[],3:[],4:[],5:[],6:[] } as any;
   classes.forEach(c => { byDay[c.day].push(c); });
   (Object.keys(byDay) as unknown as DayIndex[]).forEach((d) => byDay[d].sort((a,b)=>a.start.localeCompare(b.start)));
 
@@ -922,47 +549,6 @@ function Timetable({ classes, onCreate, onEdit, onDelete, fullscreen=false, onTo
   const blockHeight = (s: string, e: string) => {
     const H = ((toMin(e) - toMin(s)) / ((endHour-startHour)*60)) * 100;
     return Math.max(H, 2);
-  };
-
-  // FIXED: Detect overlapping classes and position them side-by-side
-  const getOverlapLayout = (dayClasses: ClassItem[]) => {
-    const layout: Record<string, { width: number; left: number }> = {};
-    
-    // Sort by start time
-    const sorted = [...dayClasses].sort((a, b) => toMin(a.start) - toMin(b.start));
-    
-    // Group overlapping classes
-    const groups: ClassItem[][] = [];
-    sorted.forEach(cls => {
-      let placed = false;
-      for (const group of groups) {
-        // Check if this class overlaps with any in the group
-        const overlaps = group.some(g => 
-          toMin(cls.start) < toMin(g.end) && toMin(cls.end) > toMin(g.start)
-        );
-        if (overlaps) {
-          group.push(cls);
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) {
-        groups.push([cls]);
-      }
-    });
-    
-    // Calculate layout for each group
-    groups.forEach(group => {
-      const count = group.length;
-      group.forEach((cls, idx) => {
-        layout[cls.id] = {
-          width: 100 / count,
-          left: (100 / count) * idx
-        };
-      });
-    });
-    
-    return layout;
   };
 
   // Red line for now
@@ -1006,76 +592,52 @@ function Timetable({ classes, onCreate, onEdit, onDelete, fullscreen=false, onTo
 
           <div className="grid grid-cols-8 gap-2 relative">
             {/* Hour ruler */}
-            <div className="space-y-0">
+            <div className="space-y-1">
               {hours.map(h => (
-                <div key={h} className="h-24 text-xs text-zinc-500 flex items-start justify-center pt-1">{String(h).padStart(2,"0")}:00</div>
+                <div key={h} className="h-16 text-xs text-zinc-500 flex items-start justify-center pt-1">{String(h).padStart(2,"0")}:00</div>
               ))}
             </div>
 
             {/* Columns */}
-            {dayCols.map((d) => {
-              const dayClasses = byDay[d];
-              const layout = getOverlapLayout(dayClasses);
-              
-              return (
-                <div key={d} className="relative border-l border-zinc-200 dark:border-zinc-800">
-                  {/* grid lines */}
-                  {hours.map(h => (
-                    <div key={h} className="h-24 border-b border-dashed border-zinc-200 dark:border-zinc-800" />
-                  ))}
+            {dayCols.map((d) => (
+              <div key={d} className="relative border-l border-zinc-200 dark:border-zinc-800">
+                {/* grid lines */}
+                {hours.map(h => (
+                  <div key={h} className="h-16 border-b border-dashed border-zinc-200 dark:border-zinc-800" />
+                ))}
 
-                  {/* Now line */}
-                  {d === (((now.getDay()+6)%7) as DayIndex) && (
-                    <div className="absolute left-0 right-0 h-0.5 bg-red-500/80 z-20" style={{ top: `${nowTop}%` }}>
-                      <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full" />
-                    </div>
-                  )}
+                {/* Now line */}
+                {d === (((now.getDay()+6)%7) as DayIndex) && (
+                  <div className="absolute left-0 right-0 h-0.5 bg-red-500/80" style={{ top: `${nowTop}%` }}>
+                    <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full" />
+                  </div>
+                )}
 
-                  {/* Blocks - FIXED for overlapping with minimum height */}
-                  {dayClasses.map(c => {
-                    const pos = layout[c.id] || { width: 100, left: 0 };
-                    const calculatedHeight = blockHeight(c.start, c.end);
-                    // Minimum 60px height for readability
-                    const minHeightPx = 60;
-                    const containerHeightPx = (endHour - startHour) * 96; // 96px per hour (h-24 = 6rem = 96px)
-                    const minHeightPercent = (minHeightPx / containerHeightPx) * 100;
-                    const finalHeight = Math.max(calculatedHeight, minHeightPercent);
-                    
-                    return (
-                      <div 
-                        key={c.id} 
-                        onDoubleClick={()=>onEdit(c)} 
-                        className="absolute rounded-xl text-white text-xs sm:text-sm font-medium shadow-md hover:shadow-lg transition cursor-pointer z-10 overflow-hidden"
-                        style={{ 
-                          top: `${timePos(c.start)}%`, 
-                          height: `${finalHeight}%`, 
-                          background: c.color,
-                          left: `${pos.left}%`,
-                          width: `${pos.width}%`,
-                          minHeight: '60px'
-                        }}
-                      >
-                        <div className="p-2.5 h-full flex flex-col">
-                          <div className="flex items-start justify-between gap-1 mb-1">
-                            <div className="font-semibold leading-tight truncate flex-1">{c.name}</div>
-                            <div className="flex items-center gap-1 opacity-0 hover:opacity-100 flex-shrink-0">
-                              <button onClick={(e) => { e.stopPropagation(); onEdit(c); }} className="bg-white/20 rounded p-1 hover:bg-white/30"><Edit3 className="w-3 h-3"/></button>
-                              <button onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} className="bg-white/20 rounded p-1 hover:bg-white/30"><X className="w-3 h-3"/></button>
-                            </div>
-                          </div>
-                          <div className="text-[11px] opacity-90 mt-auto">{c.start} – {c.end}</div>
+                {/* Blocks */}
+                {byDay[d].map(c => (
+                  <div key={c.id} onDoubleClick={()=>onEdit(c)} className="absolute left-1 right-1 rounded-xl text-white text-xs sm:text-sm font-medium shadow hover:shadow-lg transition cursor-pointer"
+                       style={{ top: `${timePos(c.start)}%`, height: `${blockHeight(c.start, c.end)}%`, background: c.color }}>
+                    <div className="p-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="leading-tight">
+                          <div>{c.name}</div>
+                          <div className="text-[10px] opacity-90">{c.start} – {c.end}</div>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 hover:opacity-100">
+                          <button onClick={() => onEdit(c)} className="bg-white/20 rounded p-1 hover:bg-white/30"><Edit3 className="w-3 h-3"/></button>
+                          <button onClick={() => onDelete(c.id)} className="bg-white/20 rounded p-1 hover:bg-white/30"><X className="w-3 h-3"/></button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {!fullscreen && <div className="mt-3 text-xs text-zinc-500">Zaman çizelgesi {startHour}:00 - {endHour}:00 arası gösterilmektedir. Derslerinize göre otomatik ölçeklenir.</div>}
+      {!fullscreen && <div className="mt-3 text-xs text-zinc-500">Saat seçimleri yerel tarayıcı zaman seçicisi ile yapılır (kaydırmalı/yerel bileşen). </div>}
     </Outer>
   );
 }
@@ -1110,7 +672,7 @@ function TodoComposer({ onAdd }: { onAdd: (t: string) => void }) {
 }
 
 function Sidebar({ tab, setTab, todos, addTodo, toggleTodo, removeTodo }: {
-  tab: "overview" | "timetable" | "history";
+  tab: "overview" | "timetable";
   setTab: (t: any) => void;
   todos: TodoItem[];
   addTodo: (t: string) => void;
@@ -1123,7 +685,6 @@ function Sidebar({ tab, setTab, todos, addTodo, toggleTodo, removeTodo }: {
       <nav className="p-2 space-y-1">
         <NavItem label="Overview" active={tab==='overview'} onClick={()=>setTab('overview')}/>
         <NavItem label="Timetable" active={tab==='timetable'} onClick={()=>setTab('timetable')}/>
-        <NavItem label="Geçmiş" active={tab==='history'} onClick={()=>setTab('history')}/>
       </nav>
       <div className="px-3 pb-3 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-sm font-semibold flex items-center gap-2"><ListChecks className="w-4 h-4"/> To‑Do</div>
       <div className="p-3 space-y-2">
@@ -1157,7 +718,7 @@ function BarMini({ values, labels, max }: { values: number[]; labels: string[]; 
       {values.map((v,i)=>{
         const h = Math.round(((v) / Math.max(1, max)) * 100);
         return (
-          <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+          <div key={i} className="flex flex-col items-center gap-1 w-7">
             <div className="w-full rounded-t-lg bg-gradient-to-t from-blue-500 to-cyan-400" style={{ height: `${h}%` }} />
             <div className="text-[10px] text-zinc-500">{labels[i][0]}</div>
           </div>
