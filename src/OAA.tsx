@@ -106,9 +106,11 @@ export default function OAANext() {
   const [tab, setTab] = useLocal<"overview" | "timetable" | "history">("oaa_next_tab", "overview");
   const [classes, setClasses] = useLocal<ClassItem[]>("oaa_next_classes", []);
   const [todos, setTodos] = useLocal<TodoItem[]>("oaa_next_todos", []);
+  // OAANext içindeki diğer state'lerin altına ekle
+const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // dakika
+
   // NEW: study minutes per day { "YYYY-MM-DD": minutes }
   const [studyLog, setStudyLog] = useLocal<Record<string, number>>("oaa_next_studylog", {});
-  const [goal] = useLocal<number>("oaa_next_goal", 300); // minutes
 
   // modals
   const [showClassModal, setShowClassModal] = useState(false);
@@ -289,7 +291,7 @@ export default function OAANext() {
               onSetTodayMinutes={setTodayMinutes}
               weekLabels={weekLabels}
               goal={goal}
-              setGoal={setGoal}
+
             />
           ) : tab === "history" ? (
             <StudyHistory studyLog={studyLog} />
@@ -477,23 +479,24 @@ export default function OAANext() {
 // =============================================================
 // Overview page
 // =============================================================
+function Overview({ todayClasses, current, next, progress, tomorrowList, openCreate, openEdit, deleteClass, todayMinutes, weeklyMinutes, onSetTodayMinutes, weekLabels, goal }: { 
+    todayClasses: ClassItem[];
+    current: ClassItem | undefined;
+    next: ClassItem | null | undefined;
+    progress: number;
+    tomorrowList: ClassItem[];
+    openCreate: () => void;
+    openEdit: (c: ClassItem) => void;
+    deleteClass: (id: string) => void;
+    todayMinutes: number;
+    weeklyMinutes: number[];
+    onSetTodayMinutes: (m: number) => void;
+    weekLabels: string[];
+    goal: number;
+  })
+  
 
-function Overview({ todayClasses, current, next, progress, tomorrowList, openCreate, openEdit, deleteClass, todayMinutes, weeklyMinutes, onSetTodayMinutes, weekLabels, goal, setGoal }: {
-  todayClasses: ClassItem[];
-  current: ClassItem | undefined;
-  next: ClassItem | null | undefined;
-  progress: number;
-  tomorrowList: ClassItem[];
-  openCreate: () => void;
-  openEdit: (c: ClassItem) => void;
-  deleteClass: (id: string) => void;
-  todayMinutes: number;
-  weeklyMinutes: number[];
-  onSetTodayMinutes: (m: number) => void;
-  weekLabels: string[];
-  goal: number;
-  setGoal: (g: number) => void;
-}) {
+{
   const [inputHours, setInputHours] = useState(Math.round((todayMinutes/60)*100)/100);
 
   useEffect(()=>{ setInputHours(Math.round((todayMinutes/60)*100)/100); }, [todayMinutes]);
@@ -798,7 +801,7 @@ function HistoryBarChart({ data, period }: { data: StudyHistoryEntry[]; period: 
   return (
     <div className="w-full overflow-x-auto">
       <div className="flex items-end justify-between gap-1 h-64 min-w-full px-2">
-        {displayData.map((entry, i) => {
+        {displayData.map((entry) => {
           const height = maxValue > 0 ? (entry.minutes / maxValue) * 100 : 0;
           // Ensure minimum visible height for non-zero values
           const displayHeight = entry.minutes > 0 ? Math.max(height, 8) : 0;
