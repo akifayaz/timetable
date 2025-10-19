@@ -108,7 +108,7 @@ export default function OAANext() {
   const [todos, setTodos] = useLocal<TodoItem[]>("oaa_next_todos", []);
   // NEW: study minutes per day { "YYYY-MM-DD": minutes }
   const [studyLog, setStudyLog] = useLocal<Record<string, number>>("oaa_next_studylog", {});
-  const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // minutes
+  const [goal] = useLocal<number>("oaa_next_goal", 300); // minutes
 
   // modals
   const [showClassModal, setShowClassModal] = useState(false);
