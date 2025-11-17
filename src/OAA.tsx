@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState, useLayoutEffect } from "react";
-import { Calendar, Clock, ListChecks, Plus, X, Moon, Sun, Trash2, Edit3, Maximize2, Minimize2, BarChart3, Settings } from "lucide-react";
+import React, { useEffect, useMemo, useState, useLayoutEffect, useRef } from "react";
+import { Calendar, Clock, ListChecks, Plus, X, Moon, Sun, Trash2, Edit3, Maximize2, Minimize2, BarChart3, Settings, BellRing, BellOff } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 // =============================================================
 // Types
@@ -26,6 +27,8 @@ type StudyHistoryEntry = {
   date: string; // YYYY-MM-DD
   minutes: number;
 };
+
+type NotificationState = NotificationPermission | "unsupported";
 
 // =============================================================
 // Constants & utils
@@ -120,6 +123,12 @@ const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // dakika
 
   // timetable fullscreen
   const [ttFull, setTtFull] = useState(false);
+  const notificationLogRef = useRef<Set<string>>(new Set());
+  const notificationRequestedRef = useRef(false);
+  const [notificationStatus, setNotificationStatus] = useState<NotificationState>(() => {
+    if (typeof window === "undefined" || typeof Notification === "undefined") return "unsupported";
+    return Notification.permission;
+  });
   // Ensure theme before paint
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -129,6 +138,112 @@ const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // dakika
     document.body.style.overflow = ttFull ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [ttFull]);
+
+  const supportsNotifications = () => typeof window !== "undefined" && typeof Notification !== "undefined";
+
+  const requestNotificationPermission = React.useCallback(async () => {
+    if (!supportsNotifications()) {
+      setNotificationStatus("unsupported");
+      return "unsupported";
+    }
+    try {
+      const result = await Notification.requestPermission();
+      setNotificationStatus(result);
+      return result;
+    } catch (err) {
+      console.warn("Notification permission error", err);
+      setNotificationStatus(Notification.permission);
+      return Notification.permission;
+    }
+  }, []);
+
+  const sendTestNotification = React.useCallback(() => {
+    if (!supportsNotifications()) {
+      setNotificationStatus("unsupported");
+      return;
+    }
+    if (Notification.permission !== "granted") {
+      setNotificationStatus(Notification.permission);
+      return;
+    }
+    try {
+      new Notification("OAA Next", {
+        body: "Bu bir test bildirimi. Ders başlangıç ve bitişlerinde otomatik uyarı alacaksın.",
+        tag: `test-${Date.now()}`,
+      });
+    } catch (err) {
+      console.warn("Notification error", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!supportsNotifications()) {
+      setNotificationStatus("unsupported");
+      return;
+    }
+    setNotificationStatus(Notification.permission);
+  }, []);
+
+  useEffect(() => {
+    if (notificationStatus === "default" && !notificationRequestedRef.current) {
+      notificationRequestedRef.current = true;
+      requestNotificationPermission();
+    }
+  }, [notificationStatus, requestNotificationPermission]);
+
+  useEffect(() => {
+    if (!supportsNotifications()) {
+      setNotificationStatus("unsupported");
+      return;
+    }
+
+    const run = () => {
+      const permission = Notification.permission;
+      if (permission !== notificationStatus) {
+        setNotificationStatus(permission);
+      }
+      if (permission !== "granted") return;
+
+      const nowTick = new Date();
+      const todayDay = ((nowTick.getDay() + 6) % 7) as DayIndex;
+      const mins = nowTick.getHours() * 60 + nowTick.getMinutes();
+      const todayKeyTick = dateKey(nowTick);
+
+      classes.forEach((cls) => {
+        if (cls.day !== todayDay) return;
+        const startMin = toMin(cls.start);
+        const endMin = toMin(cls.end);
+
+        const notify = (type: "start" | "end") => {
+          const key = `${todayKeyTick}-${cls.id}-${type}`;
+          if (notificationLogRef.current.has(key)) return;
+          notificationLogRef.current.add(key);
+          try {
+            new Notification(
+              type === "start" ? `${cls.name} başlıyor` : `${cls.name} bitti`,
+              {
+                body: type === "start" ? `${cls.start} - ${cls.end}` : `${cls.end} itibarıyla ders sona erdi`,
+                tag: key,
+              }
+            );
+          } catch (err) {
+            console.warn("Notification error", err);
+          }
+        };
+
+        if (mins === startMin) {
+          notify("start");
+        }
+        if (mins === endMin) {
+          notify("end");
+        }
+      });
+    };
+
+    run();
+    const interval = window.setInterval(run, 30_000);
+    return () => window.clearInterval(interval);
+  }, [classes, notificationStatus]);
 
   // self-tests (do not modify existing; add more below)
   useEffect(() => {
@@ -291,6 +406,9 @@ const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // dakika
               onSetTodayMinutes={setTodayMinutes}
               weekLabels={weekLabels}
               goal={goal}
+              notificationStatus={notificationStatus}
+              onRequestNotification={requestNotificationPermission}
+              onTestNotification={sendTestNotification}
 
             />
           ) : tab === "history" ? (
@@ -479,7 +597,7 @@ const [goal, setGoal] = useLocal<number>("oaa_next_goal", 300); // dakika
 // =============================================================
 // Overview page
 // =============================================================
-function Overview({ todayClasses, current, next, progress, tomorrowList, openCreate, openEdit, deleteClass, todayMinutes, weeklyMinutes, onSetTodayMinutes, weekLabels, goal }: { 
+function Overview({ todayClasses, current, next, progress, tomorrowList, openCreate, openEdit, deleteClass, todayMinutes, weeklyMinutes, onSetTodayMinutes, weekLabels, goal, notificationStatus, onRequestNotification, onTestNotification }: {
     todayClasses: ClassItem[];
     current: ClassItem | undefined;
     next: ClassItem | null | undefined;
@@ -493,6 +611,9 @@ function Overview({ todayClasses, current, next, progress, tomorrowList, openCre
     onSetTodayMinutes: (m: number) => void;
     weekLabels: string[];
     goal: number;
+    notificationStatus: NotificationState;
+    onRequestNotification: () => void;
+    onTestNotification: () => void;
   })
   
 
@@ -570,7 +691,7 @@ function Overview({ todayClasses, current, next, progress, tomorrowList, openCre
         {/* Haftalık grafik - now takes 1 column */}
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
           <div className="flex items-center justify-between mb-2"><div className="text-sm text-zinc-500">Haftalık Grafik</div></div>
-          <BarMini values={weeklyMinutes} labels={weekLabels} max={Math.max(60, ...weeklyMinutes, 1)} />
+          <WeeklyLineChart values={weeklyMinutes} labels={weekLabels} />
           <div className="mt-2 text-xs text-zinc-500">Toplam: {(weeklyMinutes.reduce((a,b)=>a+b,0)/60).toFixed(1)}s • En uzun gün: {DAYS_TR[longestDay(weeklyMinutes)]}</div>
         </div>
       </div>
@@ -591,6 +712,12 @@ function Overview({ todayClasses, current, next, progress, tomorrowList, openCre
           </div>
         ) : <div className="text-sm text-zinc-500">Yakında ders görünmüyor.</div>}
       </div>
+
+      <NotificationStatusCard
+        status={notificationStatus}
+        onRequest={onRequestNotification}
+        onTest={onTestNotification}
+      />
 
       {/* RIGHT NOW + Quick stats */}
       <div className="grid lg:grid-cols-3 gap-6">
@@ -754,9 +881,9 @@ function StudyHistory({ studyLog }: { studyLog: Record<string, number> }) {
           </div>
         </div>
         
-        {/* Bar chart */}
+        {/* Line chart */}
         <div className="mt-6">
-          <HistoryBarChart data={historyData} period={period} />
+          <HistoryLineChart data={historyData} period={period} />
         </div>
       </div>
       
@@ -788,48 +915,106 @@ function StudyHistory({ studyLog }: { studyLog: Record<string, number> }) {
   );
 }
 
-function HistoryBarChart({ data, period }: { data: StudyHistoryEntry[]; period: string }) {
+function HistoryLineChart({ data, period }: { data: StudyHistoryEntry[]; period: string }) {
   const maxValue = Math.max(...data.map(d => d.minutes), 60);
-  
-  // For display optimization
-  const displayData = period === "3months" 
-    ? data.filter((_, i) => i % 3 === 0) // Show every 3rd day for 3 months
+
+  const displayData = period === "3months"
+    ? data.filter((_, i) => i % 3 === 0)
     : period === "1month"
-    ? data.filter((_, i) => i % 2 === 0) // Show every 2nd day for 1 month
-    : data; // Show all for 7 days
-  
+    ? data.filter((_, i) => i % 2 === 0)
+    : data;
+
+  const chartData = displayData.map((entry) => ({
+    label: period === "7days" ? getDayShort(entry.date) : formatDateShort(entry.date),
+    minutes: entry.minutes,
+    fullDate: formatDate(entry.date),
+  }));
+
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex items-end justify-between gap-1 h-64 min-w-full px-2">
-        {displayData.map((entry) => {
-          const height = maxValue > 0 ? (entry.minutes / maxValue) * 100 : 0;
-          // Ensure minimum visible height for non-zero values
-          const displayHeight = entry.minutes > 0 ? Math.max(height, 8) : 0;
-          
-          return (
-            <div key={entry.date} className="flex-1 flex flex-col items-center gap-2 min-w-[30px] max-w-[80px]">
-              <div 
-                className="w-full rounded-t-lg transition-all cursor-pointer relative group min-h-[8px]"
-                style={{ 
-                  height: `${displayHeight}%`,
-                  background: entry.minutes > 0 
-                    ? 'linear-gradient(to top, #3b82f6, #06b6d4, #22c55e)' 
-                    : '#e4e4e7'
-                }}
-                title={`${formatDate(entry.date)}: ${(entry.minutes / 60).toFixed(1)} saat`}
-              >
-                {entry.minutes > 0 && (
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                    {(entry.minutes / 60).toFixed(1)}s
-                  </div>
-                )}
-              </div>
-              <div className="text-[10px] text-zinc-500 text-center font-medium">
-                {period === "7days" ? getDayShort(entry.date) : formatDateShort(entry.date)}
-              </div>
-            </div>
-          );
-        })}
+    <div className="w-full h-72">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+          <CartesianGrid strokeDasharray="4 4" className="stroke-zinc-200 dark:stroke-zinc-800" />
+          <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 12 }} tickLine={false} axisLine={{ stroke: "#e4e4e7" }} />
+          <YAxis
+            tick={{ fill: "#71717a", fontSize: 12 }}
+            width={50}
+            tickFormatter={(value) => `${Math.round(value)} dk`}
+            domain={[0, Math.max(maxValue, 60)]}
+          />
+          <Tooltip
+            formatter={(value: number) => [`${Math.round(value)} dk`, "Süre"]}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.fullDate ?? ""}
+          />
+          <Line type="monotone" dataKey="minutes" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: "#2563eb" }} activeDot={{ r: 6 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function NotificationStatusCard({ status, onRequest, onTest }: { status: NotificationState; onRequest: () => void; onTest: () => void }) {
+  const config = {
+    granted: {
+      title: "Bildirimler aktif",
+      description: "Ders başlangıç ve bitişlerinde otomatik olarak uyarı alacaksın.",
+      icon: <BellRing className="w-10 h-10 text-green-500" />,
+    },
+    default: {
+      title: "Bildirim izni gerekli",
+      description: "Uygulamanın ders zamanlarında seni uyarması için izin vermelisin.",
+      icon: <BellRing className="w-10 h-10 text-blue-500" />,
+    },
+    denied: {
+      title: "Bildirimler kapalı",
+      description: "Tarayıcı ayarlarından OAA Next için bildirimlere izin vermelisin.",
+      icon: <BellOff className="w-10 h-10 text-red-500" />,
+    },
+    unsupported: {
+      title: "Bildirim desteklenmiyor",
+      description: "Tarayıcın veya cihazın bildirim göndermeyi desteklemiyor.",
+      icon: <BellOff className="w-10 h-10 text-zinc-400" />,
+    }
+  } as const;
+
+  const cfg = config[status];
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3">
+        {cfg.icon}
+        <div>
+          <div className="text-base font-semibold">{cfg.title}</div>
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">{cfg.description}</div>
+        </div>
+      </div>
+      <div className="flex gap-3">
+        {status === "default" && (
+          <button
+            onClick={onRequest}
+            className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+          >
+            İzin İste
+          </button>
+        )}
+        {status === "granted" && (
+          <button
+            onClick={onTest}
+            className="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          >
+            Test bildirimi gönder
+          </button>
+        )}
+        {status === "denied" && (
+          <span className="text-xs text-zinc-500 max-w-xs">
+            İzni yeniden açmak için tarayıcının site ayarlarından bildirimleri etkinleştir.
+          </span>
+        )}
+        {status === "unsupported" && (
+          <span className="text-xs text-zinc-500 max-w-xs">
+            Masaüstü bir tarayıcıda açarak bildirimlerden yararlanabilirsin.
+          </span>
+        )}
       </div>
     </div>
   );
@@ -1154,18 +1339,31 @@ function NavItem({ label, active, onClick }: { label: string; active?: boolean; 
   );
 }
 
-function BarMini({ values, labels, max }: { values: number[]; labels: string[]; max: number }){
+function WeeklyLineChart({ values, labels }: { values: number[]; labels: string[] }) {
+  const chartData = labels.map((label, index) => ({
+    label,
+    minutes: values[index] ?? 0,
+  }));
+  const maxValue = Math.max(...values, 60);
+
   return (
-    <div className="flex items-end gap-2 h-28">
-      {values.map((v,i)=>{
-        const h = Math.round(((v) / Math.max(1, max)) * 100);
-        return (
-          <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <div className="w-full rounded-t-lg bg-gradient-to-t from-blue-500 to-cyan-400" style={{ height: `${h}%` }} />
-            <div className="text-[10px] text-zinc-500">{labels[i][0]}</div>
-          </div>
-        );
-      })}
+    <div className="w-full h-56">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 0, left: -10 }}>
+          <CartesianGrid strokeDasharray="4 4" className="stroke-zinc-200 dark:stroke-zinc-800" />
+          <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 12 }} tickLine={false} axisLine={{ stroke: "#e4e4e7" }} />
+          <YAxis
+            tick={{ fill: "#71717a", fontSize: 12 }}
+            width={50}
+            tickFormatter={(value) => `${Math.round(value)} dk`}
+            domain={[0, Math.max(maxValue, 60)]}
+          />
+          <Tooltip
+            formatter={(value: number) => [`${Math.round(value)} dk`, "Süre"]}
+          />
+          <Line type="monotone" dataKey="minutes" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: "#0ea5e9" }} activeDot={{ r: 6 }} />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 }
